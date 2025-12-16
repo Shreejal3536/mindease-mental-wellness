@@ -2,6 +2,11 @@ import streamlit as st
 from transformers import pipeline
 from datetime import datetime
 
+# ---------- CHAT MEMORY ----------
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+
 # ------------------ PAGE CONFIG ------------------
 st.set_page_config(
     page_title="MindEase – Mental Wellness",
@@ -54,13 +59,26 @@ def detect_emotion(text):
     return emotions[0]['label']
 
 def get_supportive_response(emotion):
-    responses = {
-        "anxiety": "I’m really glad you shared this. Let’s slow things down together. Try breathing in for 4 seconds and out for 6.",
-        "sadness": "I’m sorry you’re feeling this way. Your emotions are valid, and you don’t have to go through this alone.",
-        "anger": "It sounds like something has been weighing on you. Taking a pause can sometimes bring clarity.",
-        "fear": "Feeling afraid can be overwhelming. You’re safe here, and we can take this one step at a time."
-    }
-    return responses.get(emotion, "Thank you for opening up. I’m here with you.")
+    if emotion == "anxiety":
+        return (
+            "Thank you for telling me this. Anxiety can make everything feel overwhelming. "
+            "Let’s slow down together. Try taking one gentle breath with me right now."
+        )
+    elif emotion == "sadness":
+        return (
+            "I’m really glad you shared this with me. Feeling low can be heavy, "
+            "and it’s okay to not have all the answers right now."
+        )
+    elif emotion == "anger":
+        return (
+            "It sounds like something has been building up inside you. "
+            "You’re allowed to feel this way. Want to talk about what triggered it?"
+        )
+    else:
+        return (
+            "I’m here and listening. You don’t have to filter your thoughts here. "
+            "Say as much or as little as you want."
+        )
 
 def log_mood(emotion):
     with open("mood_log.txt", "a") as file:
@@ -72,15 +90,39 @@ goal = st.text_input("What is one thing you’d like to feel better about today?
 
 # ------------------ CHAT ------------------
 st.markdown("### 💬 Talk to MindEase")
-user_input = st.text_area("Share whatever is on your mind", height=120)
+st.caption("This is a safe, non-judgmental space. Take your time.")
 
-if st.button("Send"):
-    if user_input.strip():
-        emotion = detect_emotion(user_input)
-        response = get_supportive_response(emotion)
-        log_mood(emotion)
+# Display chat history
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-        st.markdown(f"<div class='chat-box user'><b>You:</b> {user_input}</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='chat-box bot'><b>MindEase:</b> {response}</div>", unsafe_allow_html=True)
+# User input box (real chat style)
+user_input = st.chat_input("Type your message here...")
 
-        st.caption("How are you feeling compared to earlier today?")
+if user_input:
+    # Store user message
+    st.session_state.messages.append({
+        "role": "user",
+        "content": user_input
+    })
+
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    # Emotion detection
+    emotion = detect_emotion(user_input)
+    log_mood(emotion)
+
+    # More human-like responses
+    response = get_supportive_response(emotion)
+
+    # Store bot reply
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": response
+    })
+
+    with st.chat_message("assistant"):
+        st.markdown(response)
+        st.caption("How are you feeling after sharing this?")
